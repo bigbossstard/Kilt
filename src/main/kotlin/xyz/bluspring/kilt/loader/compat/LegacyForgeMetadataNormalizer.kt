@@ -36,7 +36,7 @@ internal object LegacyForgeMetadataNormalizer {
             if (oldLoaderRange != null) {
                 val runtimeLoaderRange = "[${FMLVersion.getVersion()},)"
                 if (oldLoaderRange != runtimeLoaderRange) {
-                    config.set("loaderVersion", runtimeLoaderRange)
+                    config.set<Any?>("loaderVersion", runtimeLoaderRange)
                     logger.info(
                         "Kilt: adapted legacy javafml loader range for {} from {} to {}",
                         sourceName,
@@ -51,7 +51,7 @@ internal object LegacyForgeMetadataNormalizer {
         val dependencyRoot = config.get<Config>("dependencies")
         if (dependencyRoot != null) {
             for (ownerEntry in dependencyRoot.entrySet()) {
-                val rawTables = ownerEntry.value
+                val rawTables = ownerEntry.getValue<Any?>()
                 val tables: List<Config> = when (rawTables) {
                     is List<*> -> rawTables.mapNotNull { it as? Config }
                     is Config -> listOf(rawTables)
@@ -61,19 +61,19 @@ internal object LegacyForgeMetadataNormalizer {
                 for (dependency in tables) {
                     val legacyMandatory = dependency.get<Boolean>("mandatory")
                     if (legacyMandatory != null && dependency.get<String>("type") == null) {
-                        dependency.set(
+                        dependency.set<Any?>(
                             "type",
                             if (legacyMandatory) "required" else "optional"
                         )
-                        dependency.remove("mandatory")
+                        dependency.remove<Any?>("mandatory")
                         changed = true
                     }
 
                     if (dependency.get<String>("modId") == "forge") {
                         val oldRange = dependency.get<String>("versionRange")
                         val runtimeRange = "[${Constants.NEOFORGE_API_VERSION},)"
-                        dependency.set("modId", "neoforge")
-                        dependency.set("versionRange", runtimeRange)
+                        dependency.set<Any?>("modId", "neoforge")
+                        dependency.set<Any?>("versionRange", runtimeRange)
                         logger.info(
                             "Kilt: mapped legacy Forge dependency in {} from range {} to neoforge {}",
                             sourceName,
