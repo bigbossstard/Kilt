@@ -1,0 +1,25 @@
+modLoader = "javafml"
+loaderVersion = "[12,)"
+license = "MIT"
+
+[[mods]]
+modId = "kilt_bridge_smoke"
+version = "0.1.0"
+displayName = "Kilt Bridge Smoke Test"
+description = '''
+A tiny, unmodified NeoForge 26.3 mod for testing Kilt's universal loader bridge.
+'''
+
+[[dependencies.kilt_bridge_smoke]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.3.0.103,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.kilt_bridge_smoke]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.3,26.4)"
+ordering = "NONE"
+side = "BOTH"
