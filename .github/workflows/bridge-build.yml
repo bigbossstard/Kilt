@@ -11,7 +11,11 @@ on:
 permissions:
   contents: read
 
-concurrency:\n  group: bridge-build-${{ github.ref }}\n  cancel-in-progress: true\n\njobs:
+concurrency:
+  group: bridge-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
   build:
     runs-on: ubuntu-latest
     steps:
