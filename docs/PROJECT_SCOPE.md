@@ -19,6 +19,10 @@ Thermal is the first acceptance workload because it exercises metadata discovery
 
 Thermal-specific work belongs in test profiles, compatibility shims, or isolated modules. It must not become a hard-coded dependency of the bridge core.
 
+## Active development branch
+
+The universal bridge is developed on `work/forge-fabric-26.3`. The earlier `work/thermal-26.3` branch is retained as a historical working branch; it is not a Thermal-only project.
+
 ## Runtime target
 
 - Minecraft Java: 26.3
