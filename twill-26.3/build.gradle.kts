@@ -119,6 +119,10 @@ val patchKiltFmlLoader by tasks.registering {
                 "public static ClassProcessorSet createClassProcessorSet("
             )
             .replace(
+                "    record DiscoveryResult(",
+                "    public record DiscoveryResult("
+            )
+            .replace(
                 "builtInProcessors.add(mixinFacade.getClassProcessor());",
                 "// Twill: Fabric/Kilt owns the shared Mixin pipeline."
             )
