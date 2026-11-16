@@ -9,35 +9,71 @@
     "loader": "forge",
     "forge_line": "47.x"
   },
-  "modules": [
+  "official_release_artifacts": [
     {
       "id": "cofh_core",
       "name": "CoFH Core",
-      "source": "https://github.com/CoFH/CoFHCore/tree/1.20.1",
-      "source_version": "11.1.0",
-      "required_for_first_test": true
-    },
-    {
-      "id": "thermal",
-      "name": "Thermal Core",
-      "source": "https://github.com/CoFH/ThermalCore/tree/1.20.x",
-      "source_version": "11.1.0",
-      "required_for_first_test": true
+      "official_version": "11.0.2.56",
+      "filename": "cofh_core-1.20.1-11.0.2.56.jar",
+      "official_download_page": "https://www.curseforge.com/minecraft/mc-mods/cofh-core/files/all",
+      "published": "2024-05-26",
+      "role": "Core library required by Thermal Foundation"
     },
     {
       "id": "thermal_foundation",
       "name": "Thermal Foundation",
-      "source": "https://github.com/CoFH/ThermalFoundation/tree/1.20.1",
-      "source_version": "11.1.0",
-      "required_for_first_test": true
+      "official_version": "11.0.6.70",
+      "filename": "thermal_foundation-1.20.1-11.0.6.70.jar",
+      "official_download_page": "https://www.curseforge.com/minecraft/mc-mods/thermal-foundation/files/all",
+      "published": "2024-06-19",
+      "role": "Thermal shared ores, metals and materials; requires CoFH Core"
     },
     {
       "id": "thermal_expansion",
       "name": "Thermal Expansion",
-      "source": "https://github.com/CoFH/ThermalExpansion/tree/1.20.1",
-      "source_version": "11.1.0",
-      "required_for_first_test": true
+      "official_version": "11.0.1.29",
+      "filename": "thermal_expansion-1.20.1-11.0.1.29.jar",
+      "official_download_page": "https://www.curseforge.com/minecraft/mc-mods/thermal-expansion/files/all",
+      "published": "2024-05-26",
+      "role": "Original machines, dynamos and storage; requires Thermal Foundation"
     }
   ],
-  "binary_policy": "Do not commit original mod JARs or extracted proprietary assets."
+  "embedded_components": [
+    {
+      "id": "thermal",
+      "artifact_id": "thermal_core",
+      "name": "Thermal Core",
+      "source": "https://github.com/CoFH/ThermalCore/tree/1.20.1",
+      "source_version": "11.1.0",
+      "distribution": "Jar-in-Jar component included by the Thermal Foundation 1.20.1 build; do not assume a separate public standalone JAR is required"
+    }
+  ],
+  "source_references": [
+    {
+      "project": "CoFH/CoFHCore",
+      "branch": "1.20.1",
+      "source_mod_version": "11.1.0",
+      "url": "https://github.com/CoFH/CoFHCore/tree/1.20.1"
+    },
+    {
+      "project": "CoFH/ThermalFoundation",
+      "branch": "1.20.1",
+      "source_mod_version": "11.1.0",
+      "url": "https://github.com/CoFH/ThermalFoundation/tree/1.20.1"
+    },
+    {
+      "project": "CoFH/ThermalExpansion",
+      "branch": "1.20.1",
+      "source_mod_version": "11.1.0",
+      "url": "https://github.com/CoFH/ThermalExpansion/tree/1.20.1"
+    },
+    {
+      "project": "CoFH/ThermalCore",
+      "branch": "1.20.1",
+      "source_mod_version": "11.1.0",
+      "url": "https://github.com/CoFH/ThermalCore/tree/1.20.1"
+    }
+  ],
+  "version_note": "The public 1.20.1 release JAR versions are 11.0.x. The currently inspected GitHub source branches declare 11.1.0. Do not mix a source build and a released binary in one baseline test without recording which variant is being used.",
+  "binary_policy": "Download original jars only from official CurseForge/Modrinth pages for local testing. Do not commit original mod JARs or extracted proprietary assets."
 }

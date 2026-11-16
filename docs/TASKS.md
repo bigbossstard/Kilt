@@ -13,7 +13,7 @@ GitHub Issues are currently disabled in this fork (the Issues API returns HTTP 4
 
 - [ ] Complete Kilt 26.1.2 build with the metadata adapter.
 - [ ] Complete Kilt 1.20.1 historical baseline build.
-- [ ] Run generic Python JAR metadata tests on the universal working branch.
+- [x] Run generic Python JAR metadata/artifact-tool tests on the universal working branch.
 
 ## 26.3 migration
 
@@ -31,12 +31,14 @@ GitHub Issues are currently disabled in this fork (the Issues API returns HTTP 4
 - [ ] Add dependency normalization policies for legacy Forge IDs and version ranges without falsely claiming API compatibility.
 - [ ] Add legacy Forge namespace remapping with explicit mappings and tests.
 - [ ] Add transformation coverage for service files, reflection strings, access transformers, manifests, mixin configs, and refmaps.
+- [ ] Add Jar-in-Jar recursive inspection to the analysis tool.
 - [ ] Verify client/server isolation and dedicated-server launch.
 
 ## Thermal first integration
 
-- [ ] Acquire the original CoFH 1.20.1 artifacts locally; keep binaries out of Git.
-- [ ] Record metadata, dependency graph, class namespace counts, and SHA-256 values.
+- [ ] Obtain official public CoFH 1.20.1 binaries locally and keep them out of Git.
+- [ ] Record exact SHA-256 values and metadata for the three public JARs.
+- [ ] Inspect Thermal Core embedded Jar-in-Jar component in Thermal Foundation.
 - [ ] Establish a historical 1.20.1 comparison run.
 - [ ] Bring the original Thermal implementation through the universal bridge on Minecraft 26.3.
 - [ ] Verify machines, recipes, energy, fluids, screens, networking, persistence, and dedicated server.
@@ -44,3 +46,4 @@ GitHub Issues are currently disabled in this fork (the Issues API returns HTTP 4
 ## Repository operations
 
 - [ ] Enable GitHub Issues for normal bug and milestone tracking.
+- [ ] Create user-owned fork of KiltMC/NeoForge and KiltMC/Twill before committing source changes in those submodules.
