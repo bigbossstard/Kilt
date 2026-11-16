@@ -63,4 +63,5 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Twill 26.3 against FML 12
-        run: ./twill-26.3/gradlew --no-daemon --max-workers=2 :26.3:build --stacktrace
+        working-directory: twill-26.3
+        run: ./gradlew --no-daemon --max-workers=2 :26.3:build --stacktrace
