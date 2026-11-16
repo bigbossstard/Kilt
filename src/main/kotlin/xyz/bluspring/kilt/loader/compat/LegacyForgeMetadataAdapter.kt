@@ -53,32 +53,33 @@ object LegacyForgeMetadataAdapter {
         if (contents.containsFile(NEOFORGE_METADATA)) return null
 
         val source = contents.getPrimaryPath()
-        var normalizedContents: JarFileContents? = null
 
         try {
             val normalized = normalizedArchive(source)
-            normalizedContents = JarFileContents(normalized)
+            val normalizedContents = JarFileContents(normalized)
 
             logger.info(
                 "Kilt: normalized legacy Forge metadata for {} (metadata only; API compatibility is still required)",
                 source.fileName
             )
 
-            val modFile = JarModsDotTomlModFileReader.createModFile(
-                normalizedContents,
-                attributes
-            )
+            try {
+                val modFile = JarModsDotTomlModFileReader.createModFile(
+                    normalizedContents,
+                    attributes
+                )
 
-            // The FML reader normally transfers ownership of JarContents to the
-            // returned ModFile. If it declines the archive, close it here.
-            if (modFile == null) {
-                closeQuietly(normalizedContents, "normalized archive $normalized")
+                // The FML reader normally transfers ownership of JarContents to
+                // the returned ModFile. If it declines the archive, close it here.
+                if (modFile == null) {
+                    closeQuietly(normalizedContents, "normalized archive $normalized")
+                }
+                return modFile
+            } catch (failure: Throwable) {
+                closeQuietly(normalizedContents, "normalized archive for $source")
+                throw failure
             }
-            return modFile
         } catch (failure: Throwable) {
-            normalizedContents?.let {
-                closeQuietly(it, "normalized archive for $source")
-            }
             throw IllegalStateException(
                 "Kilt could not create a metadata-normalized copy of legacy Forge mod $source",
                 failure
