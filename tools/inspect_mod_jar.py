@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Inspect Forge/NeoForge/Fabric metadata in a mod JAR without executing it."""
+"""Inspect Forge/NeoForge/Fabric metadata and API references in a mod JAR."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import re
 import sys
 import tomllib
 import zipfile
@@ -18,13 +18,19 @@ METADATA_PATHS = (
     "META-INF/mods.toml",
 )
 
+NAMESPACE_PREFIXES = (
+    "net/minecraftforge/",
+    "net/neoforged/",
+    "net/minecraft/",
+)
+
 
 def _manifest_attributes(raw: bytes | None) -> dict[str, str]:
     if not raw:
         return {}
 
-    # Manifest continuation lines begin with one space. This reader is intentionally
-    # diagnostic-only; it does not attempt to reimplement all JAR manifest rules.
+    # Manifest continuation lines begin with one space. This reader is diagnostic
+    # only; it does not attempt to reimplement every JAR manifest edge case.
     text = raw.decode("utf-8", errors="replace").replace("\r\n", "\n")
     unfolded: list[str] = []
     for line in text.split("\n"):
@@ -40,6 +46,10 @@ def _manifest_attributes(raw: bytes | None) -> dict[str, str]:
         key, value = line.split(":", 1)
         attrs[key.strip()] = value.strip()
     return attrs
+
+
+def _sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 def inspect_mod_jar(jar_path: Path) -> dict[str, Any]:
@@ -79,23 +89,29 @@ def inspect_mod_jar(jar_path: Path) -> dict[str, Any]:
                                 {
                                     "owner": owner_mod_id,
                                     "modId": entry.get("modId"),
+                                    "type": entry.get("type"),
                                     "mandatory": entry.get("mandatory"),
                                     "versionRange": entry.get("versionRange"),
+                                    "ordering": entry.get("ordering"),
                                     "side": entry.get("side"),
                                 }
                             )
 
-            namespace_counts = {
-                "net/minecraftforge/": 0,
-                "net/neoforged/": 0,
-                "net/minecraft/": 0,
-            }
-            for name in names:
-                if not name.endswith(".class"):
-                    continue
-                for prefix in namespace_counts:
+            class_entries = [name for name in names if name.endswith(".class")]
+            defined_class_counts = {prefix: 0 for prefix in NAMESPACE_PREFIXES}
+            class_reference_counts = {prefix: 0 for prefix in NAMESPACE_PREFIXES}
+
+            for name in class_entries:
+                for prefix in NAMESPACE_PREFIXES:
                     if name.startswith(prefix):
-                        namespace_counts[prefix] += 1
+                        defined_class_counts[prefix] += 1
+
+                # Package references are stored as UTF-8 strings in Java class
+                # constant pools. This byte scan is a fast triage signal, not a
+                # replacement for ASM or a complete Java bytecode parser.
+                class_bytes = archive.read(name)
+                for prefix in NAMESPACE_PREFIXES:
+                    class_reference_counts[prefix] += class_bytes.count(prefix.encode("ascii"))
 
             if "fabric.mod.json" in names:
                 loader_family = "fabric-or-hybrid"
@@ -106,8 +122,35 @@ def inspect_mod_jar(jar_path: Path) -> dict[str, Any]:
             else:
                 loader_family = "unknown-or-library"
 
+            mixin_configs = set()
+            manifest_mixins = manifest.get("MixinConfigs", "")
+            mixin_configs.update(item.strip() for item in manifest_mixins.split(",") if item.strip())
+            mixin_configs.update(
+                name for name in names
+                if name.endswith(".mixins.json") or name.endswith(".mixin.json")
+            )
+
+            features = {
+                "mixin_configs": sorted(mixin_configs),
+                "mixin_refmaps": sorted(name for name in names if name.endswith(".refmap.json")),
+                "access_transformers": sorted(
+                    name for name in names
+                    if name.endswith("accesstransformer.cfg") or name.endswith("access_transformer.cfg")
+                ),
+                "coremod_descriptors": sorted(
+                    name for name in names
+                    if name.endswith("coremods.json") or name.endswith("coremod.json")
+                ),
+                "service_descriptors": sorted(
+                    name for name in names if name.startswith("META-INF/services/")
+                ),
+                "has_manifest": "META-INF/MANIFEST.MF" in names,
+                "has_fabric_metadata": "fabric.mod.json" in names,
+            }
+
             return {
                 "file": str(jar_path),
+                "sha256": _sha256(jar_path.read_bytes()),
                 "loader_family": loader_family,
                 "metadata_path": metadata_path,
                 "mod_loader": metadata.get("modLoader"),
@@ -130,7 +173,10 @@ def inspect_mod_jar(jar_path: Path) -> dict[str, Any]:
                     )
                     if key in manifest
                 },
-                "class_namespace_counts": namespace_counts,
+                "defined_class_counts": defined_class_counts,
+                "class_reference_counts": class_reference_counts,
+                "features": features,
+                "class_file_count": len(class_entries),
                 "entry_count": len(names),
             }
     except zipfile.BadZipFile as exc:
@@ -141,7 +187,7 @@ def inspect_mod_jar(jar_path: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Inspect mod metadata and class namespaces; never executes the JAR."
+        description="Inspect mod metadata, API references and loader features; never executes the JAR."
     )
     parser.add_argument("jars", nargs="+", type=Path, help="One or more local mod JARs")
     parser.add_argument(

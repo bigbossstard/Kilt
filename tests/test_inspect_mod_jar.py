@@ -13,20 +13,29 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 INSPECTOR = REPO_ROOT / "tools" / "inspect_mod_jar.py"
 
 
-def make_jar(path: Path, metadata_path: str, metadata: str, class_entries: tuple[str, ...]) -> None:
+def make_jar(
+    path: Path,
+    metadata_path: str,
+    metadata: str,
+    class_entries: tuple[str, ...],
+    class_bytes: bytes = b"\xca\xfe\xba\xbe",
+) -> None:
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         archive.writestr(metadata_path, metadata)
         archive.writestr(
             "META-INF/MANIFEST.MF",
             "Manifest-Version: 1.0\r\nImplementation-Title: Test Mod\r\n"
-            "Implementation-Version: 1.2.3\r\n\r\n",
+            "Implementation-Version: 1.2.3\r\nMixinConfigs: example.mixins.json\r\n\r\n",
         )
+        archive.writestr("example.mixins.json", '{"required": true}')
+        archive.writestr("example.refmap.json", '{"mappings": {}}')
+        archive.writestr("META-INF/accesstransformer.cfg", "public example.Test")
         for entry in class_entries:
-            archive.writestr(entry, b"\xca\xfe\xba\xbe")
+            archive.writestr(entry, class_bytes)
 
 
 class ModJarInspectorTests(unittest.TestCase):
-    def test_legacy_forge_metadata_is_reported(self) -> None:
+    def test_legacy_forge_metadata_and_api_references_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             jar = Path(temp_dir) / "legacy-forge.jar"
             make_jar(
@@ -46,7 +55,8 @@ versionRange = "[47,)"
 ordering = "NONE"
 side = "BOTH"
 """,
-                ("net/minecraftforge/example/Legacy.class", "net/minecraft/Example.class"),
+                ("cofh/example/LegacyMachine.class",),
+                b"\xca\xfe\xba\xbeLnet/minecraftforge/eventbus/api/IEventBus;Lnet/minecraft/world/level/Level;",
             )
 
             result = subprocess.run(
@@ -59,7 +69,12 @@ side = "BOTH"
             self.assertEqual(report["loader_family"], "legacy-forge")
             self.assertEqual(report["mod_ids"], ["sample_legacy"])
             self.assertEqual(report["dependencies"][0]["modId"], "forge")
-            self.assertEqual(report["class_namespace_counts"]["net/minecraftforge/"], 1)
+            self.assertEqual(report["defined_class_counts"]["net/minecraftforge/"], 0)
+            self.assertEqual(report["class_reference_counts"]["net/minecraftforge/"], 1)
+            self.assertEqual(report["class_reference_counts"]["net/minecraft/"], 1)
+            self.assertEqual(report["features"]["mixin_configs"], ["example.mixins.json"])
+            self.assertEqual(report["features"]["mixin_refmaps"], ["example.refmap.json"])
+            self.assertEqual(len(report["sha256"]), 64)
 
     def test_neoforge_metadata_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -81,7 +96,8 @@ versionRange = "[1,)"
 ordering = "NONE"
 side = "BOTH"
 """,
-                ("net/neoforged/example/Neo.class",),
+                ("sample/neo/Example.class",),
+                b"\xca\xfe\xba\xbeLnet/neoforged/neoforge/registries/DeferredRegister;",
             )
 
             result = subprocess.run(
@@ -93,7 +109,7 @@ side = "BOTH"
             report = json.loads(result.stdout)[0]
             self.assertEqual(report["loader_family"], "neoforge")
             self.assertEqual(report["mod_ids"], ["sample_neo"])
-            self.assertEqual(report["class_namespace_counts"]["net/neoforged/"], 1)
+            self.assertEqual(report["class_reference_counts"]["net/neoforged/"], 1)
 
     def test_required_mod_id_check_fails_cleanly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

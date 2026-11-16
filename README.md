@@ -17,7 +17,7 @@ Project scope, architecture, compatibility status, and milestones:
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md)
 - [Thermal first integration target](docs/THERMAL_FIRST_TARGET.md)
 - [26.3 porting plan](docs/PORTING_26.3.md)
-- [Source submodules](docs/SUBMODULES.md)
+- [Source submodules](docs/SUBMODULES.md)\n- [Minecraft research artifacts](docs/MINECRAFT_ARTIFACTS.md)
 
 Do not commit Minecraft game files or original CoFH binaries. Use local test artifacts as documented in [tests/thermal](tests/thermal/README.md).
 
