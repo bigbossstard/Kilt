@@ -295,7 +295,7 @@ open class TwillLoader : KnitModLoader<NeoForgeMod>("twill", "neoforge") {
     private val jijPath = FabricLoader.getInstance().gameDir.resolve(".twill/extractedMods")
 
     override fun collectAdditionalModDefinitions(gameDir: Path): Collection<ModDefinition> {
-        val discoveryResult = FMLLoader.getCurrent().runDiscovery()
+        val discoveryResult = FMLLoader.getCurrent().`twill$discover`()
         val definitions = discoveryResult.modFiles().flatMap { it.asKnitDefinitions(it.discoveryAttributes.parent) }
 
         if (discoveryResult.discoveryIssues.isNotEmpty())
