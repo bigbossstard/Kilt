@@ -66,7 +66,8 @@ val patchKiltModFile by tasks.registering {
             )
         }
 
-        if (!patched.contains("twill${'
+        val associationFieldName = "twill" + 36.toChar() + "knitAssociation"
+        if (!patched.contains(associationFieldName)) {
             val associationMarker = "    @Nullable\n    private CompletableFuture<ModFileScanData> futureScanResult;\n"
             if (!patched.contains(associationMarker)) {
                 throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate futureScanResult")
