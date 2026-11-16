@@ -322,6 +322,24 @@ dependencies {
     api(include("net.neoforged:mergetool:${fmlProperties.getProperty("mergetool_version")}")!!)
     api(include("net.neoforged:JarJarSelector:${fmlProperties.getProperty("jarjar_version")}")!!)
     api(include("net.neoforged:JarJarMetadata:${fmlProperties.getProperty("jarjar_version")}")!!)
+
+    // FML 12 moved annotations to JSpecify and uses SDL for its early error display.
+    // Keep these optional for the older FML 11 profiles.
+    fmlProperties.getProperty("asm_version")?.let { asmVersion ->
+        api(include("org.ow2.asm:asm:${asmVersion}")!!)
+        api(include("org.ow2.asm:asm-tree:${asmVersion}")!!)
+        api(include("org.ow2.asm:asm-commons:${asmVersion}")!!)
+    }
+    fmlProperties.getProperty("jspecify_version")?.let { jspecifyVersion ->
+        api(include("org.jspecify:jspecify:${jspecifyVersion}")!!)
+    }
+    fmlProperties.getProperty("lwjgl_version")?.let { lwjglVersion ->
+        implementation(platform("org.lwjgl:lwjgl-bom:${lwjglVersion}"))
+        if (fmlVersion == "12") {
+            implementation("org.lwjgl:lwjgl-sdl")
+        }
+    }
+
     api(include("org.apache.maven:maven-artifact:${fmlProperties.getProperty("apache_maven_artifact_version")}")!!)
     api(include("com.electronwill.night-config:core:${fmlProperties.getProperty("nightconfig_version")}")!!)
     api(include("com.electronwill.night-config:toml:${fmlProperties.getProperty("nightconfig_version")}")!!)
