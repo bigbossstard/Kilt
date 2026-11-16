@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 
-DESCRIPTOR_CLASS = re.compile(r"L([^;<:]+)")
+DESCRIPTOR_CLASS = re.compile(r"L([A-Za-z0-9_$/]+)(?=[;<])")
 BINARY_NAME = re.compile(r"(?:[A-Za-z_$][\w$]*[./]){2,}[A-Za-z_$][\w$]*")
 
 
@@ -53,13 +53,13 @@ class Reader:
 
 
 def _decode_modified_utf8(raw: bytes) -> str:
-    # Constant-pool UTF8 uses JVM modified UTF-8. For diagnostics we only need
-    # class names, descriptors and resource strings; replacement decoding keeps
-    # malformed/non-standard strings visible without executing the class.
-    return raw.decode("utf-8", errors="replace").replace("\\u0000", "\\uFFFD")
+    # JVM modified UTF-8 encodes NUL differently from standard UTF-8. For this
+    # diagnostic report, replacement decoding is sufficient and non-executable.
+    return raw.decode("utf-8", errors="replace")
 
 
 def parse_class_references(data: bytes) -> dict[str, Any]:
+    """Read the constant pool and class header, without loading the class."""
     reader = Reader(data)
     if reader.u4() != 0xCAFEBABE:
         raise ClassFileError("Invalid class-file magic")
@@ -69,10 +69,9 @@ def parse_class_references(data: bytes) -> dict[str, Any]:
     cp_count = reader.u2()
 
     utf8: dict[int, str] = {}
-    classes: list[int] = []
-    strings: list[int] = []
-    descriptors: list[int] = []
-    name_and_types: list[tuple[int, int]] = []
+    class_constants: dict[int, int] = {}
+    string_constants: list[int] = []
+    descriptor_constants: list[int] = []
 
     index = 1
     while index < cp_count:
@@ -81,17 +80,15 @@ def parse_class_references(data: bytes) -> dict[str, Any]:
             length = reader.u2()
             utf8[index] = _decode_modified_utf8(reader.take(length))
         elif tag == 7:  # CONSTANT_Class
-            classes.append(reader.u2())
+            class_constants[index] = reader.u2()
         elif tag == 8:  # CONSTANT_String
-            strings.append(reader.u2())
+            string_constants.append(reader.u2())
         elif tag in (9, 10, 11):  # Field/Method/InterfaceMethod ref
             reader.u2()
             reader.u2()
         elif tag == 12:  # CONSTANT_NameAndType
-            name_index = reader.u2()
-            descriptor_index = reader.u2()
-            name_and_types.append((name_index, descriptor_index))
-            descriptors.append(descriptor_index)
+            reader.u2()  # name_index
+            descriptor_constants.append(reader.u2())
         elif tag in (3, 4):  # Integer / Float
             reader.u4()
         elif tag in (5, 6):  # Long / Double occupy two CP slots
@@ -101,67 +98,56 @@ def parse_class_references(data: bytes) -> dict[str, Any]:
             reader.u1()
             reader.u2()
         elif tag == 16:  # MethodType
-            descriptors.append(reader.u2())
+            descriptor_constants.append(reader.u2())
         elif tag in (17, 18):  # Dynamic / InvokeDynamic
             reader.u2()
             reader.u2()
         elif tag in (19, 20):  # Module / Package
             reader.u2()
         else:
-            raise ClassFileError(f"Unsupported constant-pool tag {tag} at index {index}")
+            raise ClassFileError(
+                f"Unsupported constant-pool tag {tag} at index {index}"
+            )
         index += 1
+
+    def class_name(class_index: int) -> str | None:
+        name_index = class_constants.get(class_index)
+        return utf8.get(name_index) if name_index is not None else None
 
     access_flags = reader.u2()
     this_class_index = reader.u2()
     super_class_index = reader.u2()
-
-    def utf8_value(cp_index: int) -> str | None:
-        return utf8.get(cp_index)
-
-    def class_name(cp_index: int) -> str | None:
-        class_constant_index = next(
-            (cp_index for cp_index, name_index in enumerate(classes) if name_index == cp_index),
-            None,
-        )
-        del class_constant_index  # Keep the lookup below explicit and side-effect free.
-        # CONSTANT_Class entries store UTF8 indices; the class table is kept in order.
-        return None
+    interface_count = reader.u2()
+    interface_indices = [reader.u2() for _ in range(interface_count)]
 
     class_names = sorted(
         {
-            utf8_value(name_index)
-            for name_index in classes
-            if utf8_value(name_index)
+            name
+            for name_index in class_constants.values()
+            if (name := utf8.get(name_index)) is not None
         }
     )
 
-    # All CONSTANT_Class entries are references, including this/super/interfaces.
-    this_name_index = None
-    for name_index in classes:
-        if utf8_value(name_index) == utf8_value(this_class_index):
-            this_name_index = name_index
-            break
-    del this_name_index
-
     descriptor_texts = [
         utf8[index]
-        for index in descriptors
+        for index in descriptor_constants
         if index in utf8
     ]
-    descriptor_refs = {
-        match
-        for text in descriptor_texts + list(utf8.values())
-        for match in DESCRIPTOR_CLASS.findall(text)
-    }
-    descriptor_refs.update(
-        name for name in class_names if name.startswith("[")
-        for name in DESCRIPTOR_CLASS.findall(name)
+    # Signatures are Utf8 constants too, so scan all Utf8 values for object
+    # references in descriptors and generic signatures.
+    descriptor_texts.extend(utf8.values())
+    descriptor_refs = sorted(
+        {
+            match
+            for text in descriptor_texts
+            for match in DESCRIPTOR_CLASS.findall(text)
+        }
     )
 
     string_values = sorted(
         {
             utf8[index]
-            for index in strings
+            for index in string_constants
             if index in utf8
         }
     )
@@ -173,32 +159,19 @@ def parse_class_references(data: bytes) -> dict[str, Any]:
         }
     )
 
-    def cp_class_name(class_index: int) -> str | None:
-        # The class index in the class header points to a CONSTANT_Class entry.
-        # Re-scan the ordered constant pool structure via the stored name indices.
-        if class_index <= 0:
-            return None
-        # For this/super, find the matching CONSTANT_Class by ordinal after parsing:
-        # the actual constant-pool slot is not needed for the reference summary.
-        return None
-
-    del class_name, cp_class_name, access_flags, super_class_index
-
     return {
+        "class_name": class_name(this_class_index),
+        "super_class": class_name(super_class_index),
+        "interfaces": sorted(
+            name
+            for index in interface_indices
+            if (name := class_name(index)) is not None
+        ),
+        "access_flags": access_flags,
         "major_version": major_version,
         "minor_version": minor_version,
-        "class_name": utf8_value(
-            next(
-                (
-                    name_index
-                    for name_index in classes
-                    if utf8_value(name_index) and utf8_value(name_index) in class_names
-                ),
-                -1,
-            )
-        ),
         "class_references": class_names,
-        "descriptor_references": sorted(descriptor_refs),
+        "descriptor_references": descriptor_refs,
         "string_constants": string_values,
         "reflective_name_candidates": reflective_candidates,
     }
@@ -255,7 +228,9 @@ def inspect_mod_jar(path: Path, include_all_strings: bool = False) -> dict[str, 
                 None,
             )
             if metadata_path:
-                metadata = tomllib.loads(archive.read(metadata_path).decode("utf-8"))
+                metadata = tomllib.loads(
+                    archive.read(metadata_path).decode("utf-8")
+                )
 
             manifest = _read_manifest(
                 archive.read("META-INF/MANIFEST.MF")
@@ -274,7 +249,9 @@ def inspect_mod_jar(path: Path, include_all_strings: bool = False) -> dict[str, 
                         major_versions[report["major_version"]] += 1
                         class_refs.update(report["class_references"])
                         descriptor_refs.update(report["descriptor_references"])
-                        reflection_candidates.update(report["reflective_name_candidates"])
+                        reflection_candidates.update(
+                            report["reflective_name_candidates"]
+                        )
                         if include_all_strings:
                             class_string_sample.extend(
                                 f"{entry_name}: {value}"
@@ -295,9 +272,13 @@ def inspect_mod_jar(path: Path, include_all_strings: bool = False) -> dict[str, 
                     service_providers[service_name] = [
                         provider for provider in providers if provider
                     ]
-                elif entry_name.lower().endswith((".mixins.json", ".mixin.json")):
+                elif entry_name.lower().endswith(
+                    (".mixins.json", ".mixin.json")
+                ):
                     try:
-                        config = json.loads(archive.read(entry_name).decode("utf-8"))
+                        config = json.loads(
+                            archive.read(entry_name).decode("utf-8")
+                        )
                         mixin_configs.append(
                             {
                                 "path": entry_name,
