@@ -56,11 +56,15 @@ Reference: https://github.com/neoforged/NeoForge/tree/26.3.x
 
 ## Twill is also a porting blocker
 
-The current KiltMC/Twill main branch is a Stonecutter multi-version build. Its settings.gradle.kts currently lists 26.1.2 and 26.2. The 26.3 entry is explicitly commented out.
+The current KiltMC/Twill main branch is a Stonecutter multi-version build. Its settings.gradle.kts currently activates 26.1.2 and 26.2; the 26.3 entry is explicitly commented out.
 
-Twill also selects an FML generation through its FML submodule and includes that generation's Java sources in its own source set. Current Kilt points at FML v11. The official 26.3 reference uses FancyModLoader 12.0.12, so moving Twill to 26.3 requires an FML v12 integration rather than simply changing the game version.
+There is, however, a partial 26.3 experiment in stonecutter.properties.toml. It defines a 26.3 profile using minecraft_override=26.3-snapshot-9, Fabric API 0.158.0+26.3 and fml=11. That profile is not activated by settings.gradle.kts, targets a snapshot rather than the final 26.3 release, and still selects FML v11.
 
-Relevant source: https://github.com/KiltMC/Twill/blob/main/settings.gradle.kts
+Twill selects an FML generation through its FML submodule and includes that generation's Java sources in its own source set. The official 26.3 reference uses FancyModLoader 12.0.12, so the partial 26.3 profile is a useful starting point for the game/Fabric configuration, but it must be activated, updated to the stable Minecraft 26.3 baseline and ported to an FML v12 integration.
+
+Relevant sources:
+- https://github.com/KiltMC/Twill/blob/main/settings.gradle.kts
+- https://github.com/KiltMC/Twill/blob/main/stonecutter.properties.toml
 
 ## Kilt-specific NeoForge modifications
 
