@@ -98,6 +98,10 @@ class MappingCandidateTests(unittest.TestCase):
             },
             {"target/Shared"},
             [("source/", "target/")],
+            {
+                "source/One": "target/Shared",
+                "source/Two": "target/Shared",
+            },
         )
 
         self.assertEqual(len(candidates), 2)
