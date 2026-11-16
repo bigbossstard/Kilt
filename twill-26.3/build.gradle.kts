@@ -59,25 +59,30 @@ val patchKiltModFile by tasks.registering {
 
     doLast {
         var patched = modFileSource.readText()
-        patched = patched.replace(
-            "import org.slf4j.Logger;\n",
-            "import org.slf4j.Logger;\nimport xyz.bluspring.twill.loader.knit.NeoForgeMod;\n"
-        )
-
-        val associationMarker = "    @Nullable\n    private CompletableFuture<ModFileScanData> futureScanResult;\n"
-        if (!patched.contains(associationMarker)) {
-            throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate futureScanResult")
+        if (!patched.contains("import xyz.bluspring.twill.loader.knit.NeoForgeMod;")) {
+            patched = patched.replace(
+                "import org.slf4j.Logger;\n",
+                "import org.slf4j.Logger;\nimport xyz.bluspring.twill.loader.knit.NeoForgeMod;\n"
+            )
         }
-        patched = patched.replace(
-            associationMarker,
-            associationMarker + "\n    // Twill: associate the discovered FML file with its Knit container.\n    public @Nullable NeoForgeMod twill$" + "knitAssociation;\n"
-        )
 
-        val constructorMarker = "    @Override\n    public String getId() {"
-        if (!patched.contains(constructorMarker)) {
-            throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate getId")
+        if (!patched.contains("twill$knitAssociation")) {
+            val associationMarker = "    @Nullable\n    private CompletableFuture<ModFileScanData> futureScanResult;\n"
+            if (!patched.contains(associationMarker)) {
+                throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate futureScanResult")
+            }
+            patched = patched.replace(
+                associationMarker,
+                associationMarker + "\n    // Twill: associate the discovered FML file with its Knit container.\n    public @Nullable NeoForgeMod twill$" + "knitAssociation;\n"
+            )
         }
-        val adapterConstructor = """
+
+        if (!patched.contains("public ModFile(IModFile existingFile)")) {
+            val constructorMarker = "    @Override\n    public String getId() {"
+            if (!patched.contains(constructorMarker)) {
+                throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate getId")
+            }
+            val adapterConstructor = """
     // Twill: copy a generic IModFile into the concrete FML representation.
     @ApiStatus.Internal
     public ModFile(IModFile existingFile) {
@@ -93,7 +98,8 @@ val patchKiltModFile by tasks.registering {
     }
 
 """
-        patched = patched.replace(constructorMarker, adapterConstructor + constructorMarker)
+            patched = patched.replace(constructorMarker, adapterConstructor + constructorMarker)
+        }
 
         val output = patchedModFileDirectory.get().file("ModFile.java").asFile
         output.parentFile.mkdirs()
