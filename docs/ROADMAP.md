@@ -4,11 +4,12 @@ The project is intentionally staged. A milestone is complete only when its accep
 
 ## M0 — Repository and reproducible development baseline
 
-- [x] Create a working branch from the Kilt 26.1.2-era code.
-- [x] Preserve a separate historical baseline branch.
-- [ ] Make the fork build reproducibly from GitHub Actions.
+- [x] Create a universal working branch from the Kilt 26.1.2-era code.
+- [x] Preserve an upstream 26.1.x reference branch and a historical 1.20.1 branch.
+- [ ] Complete a clean build of the Kilt 26.1.2 working baseline.
+- [ ] Complete a clean build of the Kilt 1.20.1 historical baseline.
 - [ ] Record every submodule commit and build prerequisite.
-- [ ] Port the working tree from Minecraft 26.1.2 to 26.3.
+- [ ] Port Kilt, Twill/FML, and the modified NeoForge source to 26.3.
 
 ## M1 — Generic Forge-family discovery
 
@@ -56,4 +57,4 @@ Only after Thermal provides a stable integration suite, add small representative
 
 ## Current priority
 
-The immediate priority is the build baseline and M1 discovery support. Do not begin large API rewrites until CI can compile the project and a minimal test mod can be discovered.
+The immediate priority is to establish both historical and current Kilt builds, then complete the 26.3 submodule migration. Do not begin broad API rewrites until the runtime and FML build baseline is reproducible.
