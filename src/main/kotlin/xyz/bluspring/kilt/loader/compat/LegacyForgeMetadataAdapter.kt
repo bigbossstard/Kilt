@@ -32,7 +32,7 @@ import java.util.jar.JarOutputStream
 object LegacyForgeMetadataAdapter {
     private const val LEGACY_METADATA = "META-INF/mods.toml"
     private const val NEOFORGE_METADATA = "META-INF/neoforge.mods.toml"
-    private const val ADAPTER_REVISION = 1
+    private const val ADAPTER_REVISION = 2
 
     private val logger = LoggerFactory.getLogger(LegacyForgeMetadataAdapter::class.java)
 
@@ -53,17 +53,49 @@ object LegacyForgeMetadataAdapter {
         if (contents.containsFile(NEOFORGE_METADATA)) return null
 
         val source = contents.getPrimaryPath()
-        val normalized = normalizedArchive(source)
+        var normalizedContents: JarFileContents? = null
 
-        logger.info(
-            "Kilt: normalized legacy Forge metadata for {} (metadata only; API compatibility is still required)",
-            source.fileName
-        )
+        try {
+            val normalized = normalizedArchive(source)
+            normalizedContents = JarFileContents(normalized)
 
-        return JarModsDotTomlModFileReader.createModFile(
-            JarFileContents(normalized),
-            attributes
-        )
+            logger.info(
+                "Kilt: normalized legacy Forge metadata for {} (metadata only; API compatibility is still required)",
+                source.fileName
+            )
+
+            val modFile = JarModsDotTomlModFileReader.createModFile(
+                normalizedContents,
+                attributes
+            )
+
+            // The FML reader normally transfers ownership of JarContents to the
+            // returned ModFile. If it declines the archive, close it here.
+            if (modFile == null) {
+                closeQuietly(normalizedContents, "normalized archive $normalized")
+            }
+            return modFile
+        } catch (failure: Throwable) {
+            normalizedContents?.let {
+                closeQuietly(it, "normalized archive for $source")
+            }
+            throw IllegalStateException(
+                "Kilt could not create a metadata-normalized copy of legacy Forge mod $source",
+                failure
+            )
+        } finally {
+            // The returned ModFile owns the normalized JarContents, not the
+            // original contents passed to the mixin. Close the original here
+            // so discovery does not leak an open JarFile for every adapted mod.
+            closeQuietly(contents, "original archive $source")
+        }
+    }
+
+    private fun closeQuietly(contents: JarContents, description: String) {
+        runCatching { contents.close() }
+            .onFailure { failure ->
+                logger.warn("Kilt: failed to close $description after metadata normalization", failure)
+            }
     }
 
     private fun normalizedArchive(source: Path): Path {
@@ -140,10 +172,7 @@ object LegacyForgeMetadataAdapter {
             }
         } catch (failure: Throwable) {
             Files.deleteIfExists(temporary)
-            throw IllegalStateException(
-                "Kilt could not create a metadata-normalized copy of legacy Forge mod $source",
-                failure
-            )
+            throw failure
         }
 
         return target
