@@ -134,6 +134,10 @@ allprojects {
 
         maven("https://maven.minecraftforge.net/") {
             name = "MinecraftForge Maven"
+            // Do not probe this repository for unrelated mods (for example ModMenu).
+            content {
+                includeGroup("net.minecraftforge")
+            }
         }
 
         maven("https://maven.architectury.dev") {
