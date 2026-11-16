@@ -126,3 +126,9 @@ client.txt
 
 libs/
 src/forge
+
+# Local compatibility-test inputs and Python caches
+**/__pycache__/
+*.py[cod]
+/tests/thermal/jars/
+/tests/thermal/reports/
