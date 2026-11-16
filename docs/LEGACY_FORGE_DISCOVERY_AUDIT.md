@@ -23,11 +23,18 @@ The pinned FancyModLoader reader exposes:
 - metadata path constant META-INF/neoforge.mods.toml;
 - parsing through the normal FML ModFileParser path after that metadata file is found.
 
-The new Kilt hook intercepts that method and, for a JAR containing only the legacy Forge metadata path, creates a runtime-only cached JAR with an additional META-INF/neoforge.mods.toml entry copied from META-INF/mods.toml. The original source JAR is not modified. Signature sidecars are removed from the generated copy because its contents no longer match the original JAR signature.
+The Kilt hook intercepts that method and, for a JAR containing only the legacy Forge metadata path, creates a runtime-only cached JAR with META-INF/neoforge.mods.toml. The original source JAR is not modified. Signature sidecars are removed from the generated copy because its contents no longer match the original JAR signature.
 
-The adapter also closes the original JarContents after handing FML an independent normalized archive, and closes the normalized archive if FML declines or fails to parse it.
+The aliased TOML is parsed and rewritten through NightConfig, not regular expressions. The generic legacy-Forge metadata policy currently:
+- rewrites a declared javafml loaderVersion range to the runtime FML language-provider version;
+- maps a dependency whose modId is forge to the runtime mod ID neoforge and the currently pinned NeoForge API version;
+- translates legacy mandatory=true/false dependency flags to type=required/optional.
 
-This is metadata filename adaptation only. It is not yet Forge API compatibility.
+Ordinary dependencies and Minecraft version declarations are left unchanged. The current pinned policy values are FML 11.0.17 and NeoForge API 26.1.2.109. These are derived from the current Twill/FML and Kilt source pins and must be updated together when the runtime moves to 26.3.
+
+The original source JAR is not modified. The adapter closes the original JarContents after handing FML an independent normalized archive, and closes the normalized archive if FML declines or fails to parse it.
+
+This is still metadata compatibility only. It does not provide the legacy net.minecraftforge.* classes or the historical API behavior.
 
 ## Remaining discovery blockers
 
@@ -40,14 +47,9 @@ Once the filename is recognized, the old descriptor still carries old loader and
 
 The current Twill conversion preserves dependency identifiers and wraps their version ranges in NeoForgeVersionConstraint. It also asks TwillOverrides.getNativeModId(...) to resolve loader-specific dependency IDs.
 
-The next generic compatibility layer therefore needs an explicit, testable metadata policy for legacy Forge:
-1. identify the Forge loader dependency separately from ordinary mod dependencies;
-2. map its loader identity to the runtime loader only when a compatibility profile allows it;
-3. handle the old Forge loader-version constraint without silently accepting arbitrary versions;
-4. handle the Minecraft version constraint only through an explicit cross-version profile;
-5. preserve original metadata and emit diagnostics describing every override.
+The first metadata policy is now implemented and has focused Kotlin unit tests. It intentionally does not rewrite the Minecraft version declaration or ordinary dependency ranges. The forge-to-neoforge alias is applied only inside dependency tables from a legacy Forge metadata file; it is not a global dependency resolver substitution.
 
-Do not globally rewrite every forge dependency or every Minecraft version range. A mod may depend on Forge-specific APIs or game behavior that the current runtime does not implement.
+Do not interpret successful metadata normalization as proof that a 1.20.1 mod works against Minecraft 26.1/26.3. The old mod may still depend on removed Minecraft classes or Forge API behavior that the current runtime does not implement.
 
 ## Remaining runtime blockers
 
@@ -71,9 +73,9 @@ The current normalizer uses JarContents.getPrimaryPath() and opens it as a regul
 
 ## Test sequence
 
-1. Compile the adapter against the exact pinned FML submodule.
-2. Unit-test a legacy Forge descriptor JAR, a NeoForge descriptor JAR, a dual-metadata JAR, a malformed JAR, and a nested/Jar-in-Jar case.
-3. Confirm that discovery accepts a minimal legacy test mod and reports unresolved loader/game dependencies explicitly.
-4. Implement generic dependency normalization policies.
+1. Compile the adapter and normalizer against the exact pinned FML submodule.
+2. Run the TOML normalization unit tests.
+3. Unit-test JAR alias creation with legacy-only, NeoForge-only, dual-metadata, malformed, and nested/Jar-in-Jar inputs.
+4. Confirm that discovery accepts a minimal legacy test mod and reports unresolved API/game requirements explicitly.
 5. Load a minimal mod that exercises registries and lifecycle events.
 6. Only then introduce original CoFH artifacts as the first large integration suite.
