@@ -13,6 +13,8 @@ plugins {
 val fmlVersion = property("fml") as String
 val fmlLoaderSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/FMLLoader.java")
 val patchedFmlLoaderDirectory = layout.buildDirectory.dir("generated/sources/kilt-fml")
+val modFileSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/moddiscovery/ModFile.java")
+val patchedModFileDirectory = layout.buildDirectory.dir("generated/sources/kilt-modfile")
 val jarInJarSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java")
 val patchedJarInJarDirectory = layout.buildDirectory.dir("generated/sources/kilt-jarjar")
 
@@ -33,6 +35,54 @@ val patchKiltJarInJarLocator by tasks.registering {
             )
 
         val output = patchedJarInJarDirectory.get().file("JarInJarDependencyLocator.java").asFile
+        output.parentFile.mkdirs()
+        output.writeText(patched)
+    }
+}
+
+val patchKiltModFile by tasks.registering {
+    inputs.file(modFileSource)
+    outputs.file(patchedModFileDirectory.map { it.file("ModFile.java") })
+
+    doLast {
+        var patched = modFileSource.readText()
+        patched = patched.replace(
+            "import org.slf4j.Logger;\n",
+            "import org.slf4j.Logger;\nimport xyz.bluspring.twill.loader.knit.NeoForgeMod;\n"
+        )
+
+        val associationMarker = "    @Nullable\n    private CompletableFuture<ModFileScanData> futureScanResult;\n"
+        if (!patched.contains(associationMarker)) {
+            throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate futureScanResult")
+        }
+        patched = patched.replace(
+            associationMarker,
+            associationMarker + "\n    // Twill: associate the discovered FML file with its Knit container.\n    public @Nullable NeoForgeMod twill$" + "knitAssociation;\n"
+        )
+
+        val constructorMarker = "    @Override\n    public String getId() {"
+        if (!patched.contains(constructorMarker)) {
+            throw GradleException("Unsupported FML $fmlVersion ModFile.java: cannot locate getId")
+        }
+        val adapterConstructor = """
+    // Twill: copy a generic IModFile into the concrete FML representation.
+    @ApiStatus.Internal
+    public ModFile(IModFile existingFile) {
+        this.id = existingFile.getId();
+        this.contents = existingFile.getContents();
+        this.discoveryAttributes = existingFile.getDiscoveryAttributes();
+        this.jarModuleInfo = JarModuleInfo.from(this.contents);
+        this.modFileType = existingFile.getType();
+        this.mixinConfigs = List.of();
+        this.accessTransformers = List.of();
+        this.jarVersion = Optional.ofNullable(this.contents.getManifest().getMainAttributes().getValue(Attributes.Name.IMPLEMENTATION_VERSION)).orElse("0.0NONE");
+        this.modFileInfo = existingFile.getModFileInfo();
+    }
+
+"""
+        patched = patched.replace(constructorMarker, adapterConstructor + constructorMarker)
+
+        val output = patchedModFileDirectory.get().file("ModFile.java").asFile
         output.parentFile.mkdirs()
         output.writeText(patched)
     }
@@ -269,11 +319,13 @@ sourceSets {
 
         java.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/java"))
         java.srcDir(patchedJarInJarDirectory)
+        java.srcDir(patchedModFileDirectory)
         // FMLLoader is supplied from a generated source overlay with Kilt's
         // Access Transformer hand-off. Its upstream copy must not be compiled.
         java.srcDir(patchedFmlLoaderDirectory)
         java.exclude(
             "net/neoforged/fml/loading/FMLLoader.java",
+            "net/neoforged/fml/loading/moddiscovery/ModFile.java",
             "net/neoforged/fml/common/asm/AccessTransformerService.java",
             "net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java"
         )
@@ -376,7 +428,7 @@ tasks.processResources {
 }
 
 tasks.matching { it.name == "compileJava" || it.name == "compileKotlin" }.configureEach {
-    dependsOn(patchKiltFmlLoader, patchKiltJarInJarLocator)
+    dependsOn(patchKiltFmlLoader, patchKiltJarInJarLocator, patchKiltModFile)
 }
 
 tasks.withType<JavaCompile>().configureEach {
