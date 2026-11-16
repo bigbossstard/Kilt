@@ -32,7 +32,7 @@ import java.util.jar.JarOutputStream
 object LegacyForgeMetadataAdapter {
     private const val LEGACY_METADATA = "META-INF/mods.toml"
     private const val NEOFORGE_METADATA = "META-INF/neoforge.mods.toml"
-    private const val ADAPTER_REVISION = 2
+    private const val ADAPTER_REVISION = 3
 
     private val logger = LoggerFactory.getLogger(LegacyForgeMetadataAdapter::class.java)
 
@@ -59,7 +59,7 @@ object LegacyForgeMetadataAdapter {
             val normalizedContents = JarFileContents(normalized)
 
             logger.info(
-                "Kilt: normalized legacy Forge metadata for {} (metadata only; API compatibility is still required)",
+                "Kilt: normalized legacy Forge metadata for {} (loader metadata adapted; Minecraft/API compatibility is still required)",
                 source.fileName
             )
 
@@ -125,7 +125,11 @@ object LegacyForgeMetadataAdapter {
             JarFile(source.toFile()).use { input ->
                 val metadataEntry = input.getJarEntry(LEGACY_METADATA)
                     ?: throw IllegalStateException("Missing $LEGACY_METADATA in $source")
-                val metadataBytes = input.getInputStream(metadataEntry).use { it.readBytes() }
+                val originalMetadataBytes = input.getInputStream(metadataEntry).use { it.readBytes() }
+                val metadataBytes = LegacyForgeMetadataNormalizer.normalize(
+                    originalMetadataBytes,
+                    source.fileName.toString()
+                )
 
                 JarOutputStream(Files.newOutputStream(temporary)).use { output ->
                     val copiedNames = HashSet<String>()
