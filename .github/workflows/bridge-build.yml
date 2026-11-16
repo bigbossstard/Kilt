@@ -30,7 +30,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build Kilt
-        run: ./gradlew remapJar --stacktrace
+        run: ./gradlew --no-daemon --max-workers=2 remapJar --stacktrace
 
       - name: Upload Kilt artifact
         if: always()
