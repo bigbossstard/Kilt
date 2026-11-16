@@ -12,6 +12,17 @@ plugins {
 
 val fmlVersion = property("fml") as String
 val fmlLoaderSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/FMLLoader.java")
+val patchedFmlSourcesDirectory = layout.buildDirectory.dir("generated/sources/kilt-fml-copy")
+val copyKiltFmlSources by tasks.registering(Copy::class) {
+    from(rootProject.file("fml/v$fmlVersion/loader/src/main/java"))
+    exclude(
+        "net/neoforged/fml/loading/FMLLoader.java",
+        "net/neoforged/fml/loading/moddiscovery/ModFile.java",
+        "net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java"
+    )
+    into(patchedFmlSourcesDirectory)
+}
+
 val patchedFmlLoaderDirectory = layout.buildDirectory.dir("generated/sources/kilt-fml")
 val modFileSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/moddiscovery/ModFile.java")
 val patchedModFileDirectory = layout.buildDirectory.dir("generated/sources/kilt-modfile")
@@ -19,6 +30,7 @@ val jarInJarSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net
 val patchedJarInJarDirectory = layout.buildDirectory.dir("generated/sources/kilt-jarjar")
 
 val patchKiltJarInJarLocator by tasks.registering {
+    dependsOn(copyKiltFmlSources)
     inputs.file(jarInJarSource)
     outputs.file(patchedJarInJarDirectory.map { it.file("JarInJarDependencyLocator.java") })
 
@@ -41,6 +53,7 @@ val patchKiltJarInJarLocator by tasks.registering {
 }
 
 val patchKiltModFile by tasks.registering {
+    dependsOn(copyKiltFmlSources)
     inputs.file(modFileSource)
     outputs.file(patchedModFileDirectory.map { it.file("ModFile.java") })
 
@@ -89,6 +102,7 @@ val patchKiltModFile by tasks.registering {
 }
 
 val patchKiltFmlLoader by tasks.registering {
+    dependsOn(copyKiltFmlSources)
     inputs.file(fmlLoaderSource)
     outputs.file(patchedFmlLoaderDirectory.map { it.file("FMLLoader.java") })
 
@@ -342,18 +356,13 @@ sourceSets {
         java.srcDir("src/main/java")
         java.srcDir("src/main/kotlin")
 
-        java.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/java"))
+        // Use an isolated FML source copy with the three Kilt/Twill adapters
+        // overlaid separately. The original classes are excluded during copy,
+        // not via SourceDirectorySet.exclude (which would also hide the overlays).
+        java.srcDir(patchedFmlSourcesDirectory)
         java.srcDir(patchedJarInJarDirectory)
         java.srcDir(patchedModFileDirectory)
-        // FMLLoader is supplied from a generated source overlay with Kilt's
-        // Access Transformer hand-off. Its upstream copy must not be compiled.
         java.srcDir(patchedFmlLoaderDirectory)
-        java.exclude(
-            "net/neoforged/fml/loading/FMLLoader.java",
-            "net/neoforged/fml/loading/moddiscovery/ModFile.java",
-            "net/neoforged/fml/common/asm/AccessTransformerService.java",
-            "net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java"
-        )
 
         resources.srcDir("src/main/resources")
         resources.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/resources"))
