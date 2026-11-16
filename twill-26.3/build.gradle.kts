@@ -18,27 +18,210 @@ val patchKiltFmlLoader by tasks.registering {
     outputs.file(patchedFmlLoaderDirectory.map { it.file("FMLLoader.java") })
 
     doLast {
-        val original = fmlLoaderSource.readText()
-        var patched = original
-            .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\n", "")
-            .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\n", "")
+        val dollar = 36.toChar()
+        val twillCreateName = "twill" + dollar + "create"
+        val twillDiscoverName = "twill" + dollar + "discover"
+        val twillSetupName = "twill" + dollar + "setup"
+        var patched = fmlLoaderSource.readText()
 
-        patched = when {
-            patched.contains("return new AccessTransformerService(engine);") ->
-                patched.replace(
-                    "return new AccessTransformerService(engine);",
-                    "return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;"
-                )
-            patched.contains("return InactiveClassProcessor.INSTANCE;") ->
-                patched.replace(
-                    "return InactiveClassProcessor.INSTANCE;",
-                    "return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;"
-                )
-            patched.contains("return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;") ->
-                patched
-            else -> throw GradleException(
-                "Unsupported FML $fmlVersion FMLLoader.java: Kilt could not identify the Access Transformer processor hook"
+        // Kilt/Twill drives FML discovery and class transformation from Fabric's
+        // Knot loader. Port the small Kilt-owned FML hooks onto the selected
+        // FML source version rather than forking the entire loader.
+        patched = patched
+            .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\\n", "")
+            .replace("import net.neoforged.accesstransformer.api.AccessTransformerEngine;\\n", "")
+            .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\\n", "")
+            .replace(
+                "private LanguageProviderLoader languageProviderLoader;",
+                "public LanguageProviderLoader languageProviderLoader;"
             )
+            .replace(
+                "private class LaunchContextAdapter",
+                "public class LaunchContextAdapter"
+            )
+            .replace(
+                "private static ClassProcessorSet createClassProcessorSet(",
+                "public static ClassProcessorSet createClassProcessorSet("
+            )
+            .replace(
+                "builtInProcessors.add(mixinFacade.getClassProcessor());",
+                "// Twill: Fabric/Kilt owns the shared Mixin pipeline."
+            )
+            .replace(
+                "builtInProcessors.add(mixinFacade.getGeneratingClassProcessor());",
+                "// Twill: Fabric/Kilt owns synthetic Mixin class generation."
+            )
+
+        // FML 12's stock path starts an independent Mixin service. Twill uses
+        // Fabric's already-running Mixin instead, and its createClassProcessorSet
+        // is called with null startup arguments and no MixinFacade.
+        patched = Regex(
+            "(?s)        if \\\\(startupArgs\\\\.cleanDist\\\\(\\\\)\\\\) \\\\{.*?        \\\\}\\\\n"
+        ).replace(patched, "")
+
+        val accessTransformerMethod = Regex(
+            "(?s)    private static ClassProcessor createAccessTransformerService\\\\(DiscoveryResult discoveryResult\\\\) \\\\{.*?\\\\n    \\\\}"
+        )
+        if (!accessTransformerMethod.containsMatchIn(patched)) {
+            throw GradleException("Unsupported FML $fmlVersion: cannot find createAccessTransformerService")
+        }
+        patched = accessTransformerMethod.replace(
+            patched,
+            """
+    private static ClassProcessor createAccessTransformerService(DiscoveryResult discoveryResult) {
+        // Kilt applies access transformers through its Fabric/Knot transformation path.
+        return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;
+    }
+            """.trimIndent()
+        )
+
+        // FML 11 already has the Kilt hooks. Add their FML 12 equivalents only
+        // when absent so the same profile can also compile its older Stonecutter targets.
+        val twillCreate = """
+    public static FMLLoader $twillCreateName(@Nullable Instrumentation instrumentation, StartupArgs startupArgs, ClassLoader initialLoader, boolean isProduction) {
+        PathPrettyPrinting.addRoot(startupArgs.gameDirectory());
+        var loader = new FMLLoader(
+                initialLoader,
+                startupArgs.programArgs(),
+                Objects.requireNonNullElseGet(startupArgs.dist(), () -> detectDist(initialLoader)),
+                isProduction,
+                startupArgs.gameDirectory());
+
+        try {
+            FMLPaths.loadAbsolutePaths(startupArgs.gameDirectory());
+            FMLConfig.load();
+
+            var launchContext = loader.new LaunchContextAdapter();
+            for (var claimedFile : startupArgs.claimedFiles()) {
+                launchContext.addLocated(claimedFile.toPath());
+            }
+
+            loader.loadEarlyServices(startupArgs);
+
+            ServiceLoaderUtil.loadEarlyServices(launchContext, EarlyBootstrapper.class, List.of())
+                    .forEach(bootstrap -> {
+                        LOGGER.info("Running early bootstrap plugin {}", bootstrap.name());
+                        bootstrap.bootstrap(loader.programArgs);
+                    });
+
+            ImmediateWindowHandler.load(launchContext, startupArgs.headless(), loader.programArgs);
+            if (loader.versionInfo.neoForgeVersion() != null) {
+                ImmediateWindowHandler.setNeoForgeVersion(loader.versionInfo.neoForgeVersion());
+            }
+            if (loader.versionInfo.mcVersion() != null) {
+                ImmediateWindowHandler.setMinecraftVersion(loader.versionInfo.mcVersion());
+            }
+
+            ImmediateWindowHandler.updateProgress("Launching minecraft");
+            ImmediateWindowHandler.renderTick();
+            return loader;
+        } catch (RuntimeException | Error e) {
+            try {
+                loader.close();
+            } catch (Throwable t) {
+                e.addSuppressed(t);
+            }
+            throw e;
+        }
+    }
+        """.trimIndent()
+
+        if (!patched.contains("public static FMLLoader $twillCreateName(")) {
+            val marker = "    public static FMLLoader create(StartupArgs startupArgs)"
+            if (!patched.contains(marker)) {
+                throw GradleException("Unsupported FML $fmlVersion: cannot locate FMLLoader.create")
+            }
+            patched = patched.replace(marker, twillCreate + "\\n\\n" + marker)
+        }
+
+        val twillDiscover: String = if (patched.contains("public ModDiscoverer.Result runDiscovery()")) {
+            """
+    public ModDiscoverer.Result $twillDiscoverName() {
+        return runDiscovery();
+    }
+            """.trimIndent()
+        } else {
+            """
+    public ModDiscoverer.Result $twillDiscoverName() {
+        var progress = StartupNotificationManager.prependProgressBar("Discovering mods...", 0);
+        var additionalLocators = new ArrayList<IModFileCandidateLocator>();
+
+        // Fabric Loader already owns Minecraft and the mods directory.
+        additionalLocators.add(new InDevFolderLocator());
+        additionalLocators.add(new InDevJarLocator());
+
+        var modDiscoverer = new ModDiscoverer(new LaunchContextAdapter(), additionalLocators);
+        var result = modDiscoverer.discoverMods(earlyServicesJars);
+
+        var neoForgeVersion = versionInfo.neoForgeVersion();
+        var minecraftVersion = versionInfo.mcVersion();
+        for (var modFile : result.modFiles()) {
+            var mods = modFile.getModFileInfo().getMods();
+            if (mods.isEmpty()) {
+                continue;
+            }
+            var mainMod = mods.getFirst();
+            switch (modFile.getId()) {
+                case "minecraft" -> minecraftVersion = mainMod.getVersion().toString();
+                case "neoforge" -> neoForgeVersion = mainMod.getVersion().toString();
+            }
+        }
+
+        versionInfo = new VersionInfo(neoForgeVersion, minecraftVersion, getVersionInfo().neoFormVersion());
+        versionSupportMatrix = new VersionSupportMatrix(versionInfo);
+        progress.complete();
+        ImmediateWindowHandler.setMinecraftVersion(versionInfo.mcVersion());
+        ImmediateWindowHandler.setNeoForgeVersion(versionInfo.neoForgeVersion());
+        return result;
+    }
+            """.trimIndent()
+        }
+
+        if (!patched.contains("public ModDiscoverer.Result $twillDiscoverName(")) {
+            val setupMarker = "    public DiscoveryResult $twillSetupName("
+            val processorMarker = "    public static ClassProcessorSet createClassProcessorSet("
+            val insertAt = when {
+                patched.contains(setupMarker) -> setupMarker
+                patched.contains(processorMarker) -> processorMarker
+                else -> throw GradleException("Unsupported FML $fmlVersion: cannot locate Twill discovery insertion point")
+            }
+            patched = patched.replace(insertAt, twillDiscover + "\\n\\n" + insertAt)
+        }
+
+        val twillSetup = """
+    public DiscoveryResult $twillSetupName(ModDiscoverer.Result discoveryResult) {
+        loadingModList = ModSorter.sort(discoveryResult.modFiles(), discoveryResult.discoveryIssues());
+
+        Map<IModInfo, JarResource> enumExtensionsByMod = new HashMap<>();
+        for (var modFile : loadingModList.getAllModFiles()) {
+            for (var mod : modFile.getModInfos()) {
+                mod.getConfig().<String>getConfigElement("enumExtensions").ifPresent(file -> {
+                    var resource = mod.getOwningFile().getFile().getContents().get(file);
+                    if (resource == null) {
+                        ModLoader.addLoadingIssue(ModLoadingIssue.error("fml.modloadingissue.enumextender.file_not_found", file).withAffectedMod(mod));
+                        return;
+                    }
+                    enumExtensionsByMod.put(mod, resource);
+                });
+            }
+        }
+        RuntimeEnumExtender.loadEnumPrototypes(enumExtensionsByMod);
+
+        backgroundScanHandler = new BackgroundScanHandler(loadingModList.getAllModFiles());
+        return this.discoveryResult = new DiscoveryResult(
+                loadingModList.getPlugins().stream().map(mfi -> (ModFile) mfi.getFile()).toList(),
+                loadingModList.getModFiles().stream().map(ModFileInfo::getFile).toList(),
+                loadingModList.getGameLibraries().stream().map(mf -> (ModFile) mf).toList(),
+                loadingModList.getModLoadingIssues());
+    }
+        """.trimIndent()
+
+        if (!patched.contains("public DiscoveryResult $twillSetupName(")) {
+            val processorMarker = "    public static ClassProcessorSet createClassProcessorSet("
+            if (!patched.contains(processorMarker)) {
+                throw GradleException("Unsupported FML $fmlVersion: cannot locate class processor insertion point")
+            }
+            patched = patched.replace(processorMarker, twillSetup + "\\n\\n" + processorMarker)
         }
 
         val output = patchedFmlLoaderDirectory.get().file("FMLLoader.java").asFile
