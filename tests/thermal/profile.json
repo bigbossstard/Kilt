@@ -1,0 +1,43 @@
+{
+  "profile": "thermal-series-first-integration",
+  "target": {
+    "minecraft": "26.3",
+    "loader": "fabric"
+  },
+  "historical_control": {
+    "minecraft": "1.20.1",
+    "loader": "forge",
+    "forge_line": "47.x"
+  },
+  "modules": [
+    {
+      "id": "cofh_core",
+      "name": "CoFH Core",
+      "source": "https://github.com/CoFH/CoFHCore/tree/1.20.1",
+      "source_version": "11.1.0",
+      "required_for_first_test": true
+    },
+    {
+      "id": "thermal",
+      "name": "Thermal Core",
+      "source": "https://github.com/CoFH/ThermalCore/tree/1.20.x",
+      "source_version": "11.1.0",
+      "required_for_first_test": true
+    },
+    {
+      "id": "thermal_foundation",
+      "name": "Thermal Foundation",
+      "source": "https://github.com/CoFH/ThermalFoundation/tree/1.20.1",
+      "source_version": "11.1.0",
+      "required_for_first_test": true
+    },
+    {
+      "id": "thermal_expansion",
+      "name": "Thermal Expansion",
+      "source": "https://github.com/CoFH/ThermalExpansion/tree/1.20.1",
+      "source_version": "11.1.0",
+      "required_for_first_test": true
+    }
+  ],
+  "binary_policy": "Do not commit original mod JARs or extracted proprietary assets."
+}
