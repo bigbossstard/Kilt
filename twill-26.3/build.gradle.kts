@@ -13,6 +13,30 @@ plugins {
 val fmlVersion = property("fml") as String
 val fmlLoaderSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/FMLLoader.java")
 val patchedFmlLoaderDirectory = layout.buildDirectory.dir("generated/sources/kilt-fml")
+val jarInJarSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java")
+val patchedJarInJarDirectory = layout.buildDirectory.dir("generated/sources/kilt-jarjar")
+
+val patchKiltJarInJarLocator by tasks.registering {
+    inputs.file(jarInJarSource)
+    outputs.file(patchedJarInJarDirectory.map { it.file("JarInJarDependencyLocator.java") })
+
+    doLast {
+        val original = jarInJarSource.readText()
+        val patched = original
+            .replace(
+                "private static String extractEmbeddedJarFile(",
+                "public static String extractEmbeddedJarFile("
+            )
+            .replace(
+                "private static void moveExtractedFileIntoPlace(",
+                "public static void moveExtractedFileIntoPlace("
+            )
+
+        val output = patchedJarInJarDirectory.get().file("JarInJarDependencyLocator.java").asFile
+        output.parentFile.mkdirs()
+        output.writeText(patched)
+    }
+}
 
 val patchKiltFmlLoader by tasks.registering {
     inputs.file(fmlLoaderSource)
@@ -244,6 +268,7 @@ sourceSets {
         java.srcDir("src/main/kotlin")
 
         java.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/java"))
+        java.srcDir(patchedJarInJarDirectory)
         // FMLLoader is supplied from a generated source overlay with Kilt's
         // Access Transformer hand-off. Its upstream copy must not be compiled.
         java.srcDir(patchedFmlLoaderDirectory)
@@ -333,7 +358,7 @@ tasks.processResources {
 }
 
 tasks.matching { it.name == "compileJava" || it.name == "compileKotlin" }.configureEach {
-    dependsOn(patchKiltFmlLoader)
+    dependsOn(patchKiltFmlLoader, patchKiltJarInJarLocator)
 }
 
 tasks.withType<JavaCompile>().configureEach {
