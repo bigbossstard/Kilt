@@ -1,3 +1,4 @@
+import org.gradle.api.GradleException
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import java.util.*
@@ -28,9 +29,9 @@ val patchKiltFmlLoader by tasks.registering {
         // Knot loader. Port the small Kilt-owned FML hooks onto the selected
         // FML source version rather than forking the entire loader.
         patched = patched
-            .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\\n", "")
-            .replace("import net.neoforged.accesstransformer.api.AccessTransformerEngine;\\n", "")
-            .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\\n", "")
+            .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\n", "")
+            .replace("import net.neoforged.accesstransformer.api.AccessTransformerEngine;\n", "")
+            .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\n", "")
             .replace(
                 "private LanguageProviderLoader languageProviderLoader;",
                 "public LanguageProviderLoader languageProviderLoader;"
@@ -56,11 +57,11 @@ val patchKiltFmlLoader by tasks.registering {
         // Fabric's already-running Mixin instead, and its createClassProcessorSet
         // is called with null startup arguments and no MixinFacade.
         patched = Regex(
-            "(?s)        if \\\\(startupArgs\\\\.cleanDist\\\\(\\\\)\\\\) \\\\{.*?        \\\\}\\\\n"
+            "(?s)        if \\(startupArgs\\.cleanDist\\(\\)\\) \\{.*?        \\}\\n"
         ).replace(patched, "")
 
         val accessTransformerMethod = Regex(
-            "(?s)    private static ClassProcessor createAccessTransformerService\\\\(DiscoveryResult discoveryResult\\\\) \\\\{.*?\\\\n    \\\\}"
+            "(?s)    private static ClassProcessor createAccessTransformerService\\(DiscoveryResult discoveryResult\\) \\{.*?\\n    \\}"
         )
         if (!accessTransformerMethod.containsMatchIn(patched)) {
             throw GradleException("Unsupported FML $fmlVersion: cannot find createAccessTransformerService")
@@ -131,7 +132,7 @@ val patchKiltFmlLoader by tasks.registering {
             if (!patched.contains(marker)) {
                 throw GradleException("Unsupported FML $fmlVersion: cannot locate FMLLoader.create")
             }
-            patched = patched.replace(marker, twillCreate + "\\n\\n" + marker)
+            patched = patched.replace(marker, twillCreate + "\n\n" + marker)
         }
 
         val twillDiscover: String = if (patched.contains("public ModDiscoverer.Result runDiscovery()")) {
@@ -185,7 +186,7 @@ val patchKiltFmlLoader by tasks.registering {
                 patched.contains(processorMarker) -> processorMarker
                 else -> throw GradleException("Unsupported FML $fmlVersion: cannot locate Twill discovery insertion point")
             }
-            patched = patched.replace(insertAt, twillDiscover + "\\n\\n" + insertAt)
+            patched = patched.replace(insertAt, twillDiscover + "\n\n" + insertAt)
         }
 
         val twillSetup = """
@@ -221,7 +222,7 @@ val patchKiltFmlLoader by tasks.registering {
             if (!patched.contains(processorMarker)) {
                 throw GradleException("Unsupported FML $fmlVersion: cannot locate class processor insertion point")
             }
-            patched = patched.replace(processorMarker, twillSetup + "\\n\\n" + processorMarker)
+            patched = patched.replace(processorMarker, twillSetup + "\n\n" + processorMarker)
         }
 
         val output = patchedFmlLoaderDirectory.get().file("FMLLoader.java").asFile
