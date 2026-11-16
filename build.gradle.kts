@@ -137,6 +137,8 @@ allprojects {
             // Do not probe this repository for unrelated mods (for example ModMenu).
             content {
                 includeGroup("net.minecraftforge")
+                // Legacy Forge hosts its TypeTools fork (0.8.3) under net.jodah.
+                includeGroup("net.jodah")
             }
         }
 
