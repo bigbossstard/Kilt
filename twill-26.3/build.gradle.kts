@@ -106,9 +106,30 @@ val patchKiltFmlLoader by tasks.registering {
             .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\n", "")
             .replace("import net.neoforged.accesstransformer.api.AccessTransformerEngine;\n", "")
             .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\n", "")
+
+        if (!patched.contains("import xyz.bluspring.twill.loader.neoforge.TwillBindings;")) {
+            patched = patched.replace(
+                "import org.slf4j.Logger;\n",
+                "import org.slf4j.Logger;\nimport xyz.bluspring.twill.loader.neoforge.TwillBindings;\n"
+            )
+        }
+
+        patched = patched
             .replace(
                 "private LanguageProviderLoader languageProviderLoader;",
                 "public LanguageProviderLoader languageProviderLoader;"
+            )
+            .replace(
+                "private ModuleLayer gameLayer;",
+                "private ModuleLayer gameLayer = ModuleLayer.boot();"
+            )
+            .replace(
+                "volatile IBindingsProvider bindings;",
+                "volatile IBindingsProvider bindings = TwillBindings.INSTANCE;"
+            )
+            .replace(
+                "private void loadPlugins(",
+                "public void loadPlugins("
             )
             .replace(
                 "private class LaunchContextAdapter",
