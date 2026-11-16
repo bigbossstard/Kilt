@@ -1,7 +1,7 @@
 package xyz.bluspring.kilt.loader.compat
 
-import cpw.mods.jarhandling.JarContents
-import cpw.mods.jarhandling.JarFileContents
+import net.neoforged.fml.jarcontents.JarContents
+import net.neoforged.fml.jarcontents.JarFileContents
 import net.fabricmc.loader.api.FabricLoader
 import net.neoforged.fml.loading.moddiscovery.readers.JarModsDotTomlModFileReader
 import net.neoforged.neoforgespi.locating.IModFile
@@ -49,8 +49,8 @@ object LegacyForgeMetadataAdapter {
         contents: JarContents,
         attributes: ModFileDiscoveryAttributes
     ): IModFile? {
-        if (!contents.findFile(LEGACY_METADATA).isPresent) return null
-        if (contents.findFile(NEOFORGE_METADATA).isPresent) return null
+        if (!contents.containsFile(LEGACY_METADATA)) return null
+        if (contents.containsFile(NEOFORGE_METADATA)) return null
 
         val source = contents.getPrimaryPath()
         val normalized = normalizedArchive(source)
