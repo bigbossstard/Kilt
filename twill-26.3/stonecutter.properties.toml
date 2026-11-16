@@ -1,0 +1,19 @@
+# FML versions are pinned as submodules; 26.3 uses the official FML 12 line.
+
+["26.1.2"]
+supported_versions = "26.1,26.1.1,26.1.2"
+mc_version_range = "~26.1"
+fabric_api = "0.155.3+26.1.2"
+fml = "11"
+
+["26.2"]
+supported_versions = "26.2"
+mc_version_range = "~26.2"
+fabric_api = "0.161.0+26.2"
+fml = "11"
+
+["26.3"]
+supported_versions = "26.3"
+mc_version_range = "~26.3"
+fabric_api = "0.166.2+26.3"
+fml = "12"

@@ -1,0 +1,33 @@
+{
+    "schemaVersion": 1,
+    "id": "twill",
+    "version": "${version}",
+    "name": "Twill",
+    "description": "A small development tool for NeoForge mod developers to work with Fabric.",
+    "authors": [
+        "BluSpring"
+    ],
+    "contact": {
+        "sources": "https://github.com/KiltMC/Twill"
+    },
+    "license": "LGPL-2.1-only",
+    "icon": "assets/twill/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [
+            "xyz.bluspring.twill.Twill"
+        ],
+        "mass-asm": [
+            "xyz.bluspring.twill.processor.TwillClassProcessorImpl"
+        ]
+    },
+    "mixins": [
+        "twill.mixins.json"
+    ],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "fabric-language-kotlin": ">=${kotlin_loader_version}",
+        "fabric-api": "*",
+        "minecraft": "${minecraft_version}"
+    }
+}

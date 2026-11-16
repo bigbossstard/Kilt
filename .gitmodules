@@ -4,3 +4,12 @@
 [submodule "twill"]
 	path = twill
 	url = https://github.com/KiltMC/Twill.git
+[submodule "twill-26.3/fml/v11"]
+	path = twill-26.3/fml/v11
+	url = https://github.com/KiltMC/FancyModLoader.git
+[submodule "twill-26.3/fml/v12"]
+	path = twill-26.3/fml/v12
+	url = https://github.com/neoforged/FancyModLoader.git
+[submodule "twill-26.3/knit-loader"]
+	path = twill-26.3/knit-loader
+	url = https://github.com/KiltMC/KnitLoader.git
