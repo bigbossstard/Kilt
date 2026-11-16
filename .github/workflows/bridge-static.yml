@@ -1,0 +1,27 @@
+name: Bridge static tests
+
+on:
+  push:
+    branches:
+      - 'work/*'
+      - 'baseline/*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run metadata inspector tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Compile Python tooling
+        run: python -m compileall -q tools tests
