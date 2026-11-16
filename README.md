@@ -1,3 +1,26 @@
+## Development fork: Forge / NeoForge to Fabric bridge
+
+This fork is being developed as a **general Forge/NeoForge-to-Fabric compatibility bridge**. Thermal Series is the first end-to-end integration target, not the only supported mod family and not a dependency of the bridge core.
+
+- Runtime target: Minecraft Java 26.3 + Fabric.
+- Compatibility inputs: legacy Forge and modern NeoForge mod JARs.
+- First integration workload: the original CoFH Thermal Series.
+- Current working branch: `work/thermal-26.3`.
+- Historical comparison branch: `baseline/thermal-1.20.1`.
+
+The first implementation slice normalizes legacy Forge's `META-INF/mods.toml` filename for the current FML discovery reader. **This is metadata discovery only**; it does not yet provide Forge 47 API compatibility, Minecraft 1.20.1-to-26.3 bytecode/API migration, or a working Thermal runtime.
+
+Project scope, architecture, compatibility status, and milestones:
+- [Project scope](docs/PROJECT_SCOPE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md)
+- [Thermal first integration target](docs/THERMAL_FIRST_TARGET.md)
+
+Do not commit Minecraft game files or original CoFH binaries. Use local test artifacts as documented in [tests/thermal](tests/thermal/README.md).
+
+---
+
 <h1 align="left">
 <img align="center" width="56" alt="Kilt Logo" src="https://github.com/KiltMC/Kilt/blob/version/1.20.1/src/main/resources/assets/kilt/icon.png?raw=true"> Kilt
 </h1>
