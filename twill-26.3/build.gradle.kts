@@ -10,6 +10,42 @@ plugins {
 }
 
 val fmlVersion = property("fml") as String
+val fmlLoaderSource = rootProject.file("fml/v$fmlVersion/loader/src/main/java/net/neoforged/fml/loading/FMLLoader.java")
+val patchedFmlLoaderDirectory = layout.buildDirectory.dir("generated/sources/kilt-fml")
+
+val patchKiltFmlLoader by tasks.registering {
+    inputs.file(fmlLoaderSource)
+    outputs.file(patchedFmlLoaderDirectory.map { it.file("FMLLoader.java") })
+
+    doLast {
+        val original = fmlLoaderSource.readText()
+        var patched = original
+            .replace("import net.neoforged.fml.common.asm.AccessTransformerService;\n", "")
+            .replace("import xyz.bluspring.kilt.loader.asm.InactiveClassProcessor;\n", "")
+
+        patched = when {
+            patched.contains("return new AccessTransformerService(engine);") ->
+                patched.replace(
+                    "return new AccessTransformerService(engine);",
+                    "return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;"
+                )
+            patched.contains("return InactiveClassProcessor.INSTANCE;") ->
+                patched.replace(
+                    "return InactiveClassProcessor.INSTANCE;",
+                    "return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;"
+                )
+            patched.contains("return xyz.bluspring.twill.compat.InactiveAccessTransformerProcessor.INSTANCE;") ->
+                patched
+            else -> throw GradleException(
+                "Unsupported FML $fmlVersion FMLLoader.java: Kilt could not identify the Access Transformer processor hook"
+            )
+        }
+
+        val output = patchedFmlLoaderDirectory.get().file("FMLLoader.java").asFile
+        output.parentFile.mkdirs()
+        output.writeText(patched)
+    }
+}
 
 version = "${rootProject.property("mod_version")}+${stonecutter.current.version}"
 group = rootProject.property("maven_group") as String
@@ -24,16 +60,19 @@ sourceSets {
         java.srcDir("src/main/kotlin")
 
         java.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/java"))
+        // FMLLoader is supplied from a generated source overlay with Kilt's
+        // Access Transformer hand-off. Its upstream copy must not be compiled.
+        java.srcDir(patchedFmlLoaderDirectory)
+        java.exclude(
+            "net/neoforged/fml/loading/FMLLoader.java",
+            "net/neoforged/fml/common/asm/AccessTransformerService.java",
+            "net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java"
+        )
 
         resources.srcDir("src/main/resources")
         resources.srcDir(rootProject.file("fml/v$fmlVersion/loader/src/main/resources"))
 
-        // Kilt owns these two runtime services. Exclude FML's competing
-        // implementations and ServiceLoader registration from the bridge jar.
-        java.exclude(
-            "net/neoforged/fml/common/asm/AccessTransformerService.java",
-            "net/neoforged/fml/loading/moddiscovery/locators/JarInJarDependencyLocator.java"
-        )
+        // Kilt owns the Jar-in-Jar discovery path.
         resources.exclude(
             "META-INF/services/net.neoforged.neoforgespi.locating.IDependencyLocator"
         )
@@ -107,6 +146,10 @@ tasks.processResources {
             "kotlin_loader_version" to libs.versions.fabric.kotlin.get(),
         )
     }
+}
+
+tasks.matching { it.name == "compileJava" || it.name == "compileKotlin" }.configureEach {
+    dependsOn(patchKiltFmlLoader)
 }
 
 tasks.withType<JavaCompile>().configureEach {

@@ -1,6 +1,8 @@
 package xyz.bluspring.twill
 
+import net.neoforged.fml.FMLVersion
+
 object TwillConstants {
-    // https://projects.neoforged.net/neoforged/fancymodloader
-    const val FML_VERSION = "11.0.17"
+    // Resolve the version from the FML source-set selected by Stonecutter.
+    @JvmField val FML_VERSION: String = FMLVersion.getVersion()
 }
