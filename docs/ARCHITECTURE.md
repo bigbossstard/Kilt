@@ -37,7 +37,7 @@ A modern NeoForge runtime does not automatically provide the old Forge package n
 
 Recognize both metadata markers, parse each dialect without changing the source JAR, normalize dependency identifiers and loader constraints through explicit policies, and preserve the original metadata for diagnostics.
 
-The first code slice adds a runtime-only normalized copy for legacy Forge metadata so the existing NeoForge FML reader can inspect it. This is deliberately narrow: it does not claim old Forge dependencies or APIs are already satisfied.
+The first code slice creates a runtime-only normalized copy for legacy Forge metadata so the existing NeoForge FML reader can inspect it. It converts legacy `mandatory` flags to FML `type`, maps the `forge` loader dependency to `neoforge`, updates the old JavaFML loader range to the embedded FML version, and maps a legacy Minecraft dependency range to the current runtime version. The original JAR is never modified and every override is logged. This resolves metadata dialect differences only; it does not claim the Forge API or old Minecraft bytecode is already compatible.
 
 ### 2. Namespace and bytecode remapping
 

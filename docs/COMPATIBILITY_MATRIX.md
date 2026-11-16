@@ -8,7 +8,7 @@ Last reviewed: 2026-11-16.
 | Final runtime target | Minecraft 26.3, Fabric | Not implemented | Must update Kilt, Twill/FML, and modified NeoForge source together |
 | Fabric 26.3 toolchain | Java 25, Loader 0.19.5, API 0.166.2+26.3, Loom 1.17.x, Gradle 9.6.0 | Verified from release documentation/listing | See `docs/PORTING_26.3.md` |
 | Kilt historical baseline | Minecraft 1.20.1 | Separate branch; Gradle build currently running | Useful for comparing legacy Forge integration |
-| Legacy Forge metadata | `META-INF/mods.toml` | Runtime adapter added; build validation pending | Metadata normalization is not API compatibility |
+| Legacy Forge metadata | `META-INF/mods.toml` | Runtime normalizer added; build validation pending | Filename, dependency type, loader id and selected version constraints are normalized; API compatibility remains unimplemented |
 | NeoForge metadata | `META-INF/neoforge.mods.toml` | Native discovery path in current Kilt/Twill | Must remain supported |
 | Forge 47.x API | Minecraft 1.20.1 | Not supported by the 26.1.2 runtime yet | Historical API and package namespace |
 | CoFH Core public release | 1.20.1 / Forge | `11.0.2.56`; not yet tested | Official CurseForge release |

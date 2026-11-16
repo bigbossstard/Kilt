@@ -8,7 +8,7 @@ This fork is being developed as a **general Forge/NeoForge-to-Fabric compatibili
 - Current working branch: [`work/forge-fabric-26.3`](https://github.com/bigbossstard/Kilt/tree/work/forge-fabric-26.3).
 - Historical comparison branch: `baseline/thermal-1.20.1`.
 
-The first implementation slice normalizes legacy Forge's `META-INF/mods.toml` filename for the current FML discovery reader. **This is metadata discovery only**; it does not yet provide Forge 47 API compatibility, Minecraft 1.20.1-to-26.3 bytecode/API migration, or a working Thermal runtime.
+The first runtime slice normalizes legacy Forge `META-INF/mods.toml` metadata for the current FML reader: it adapts dependency types, Forge/NeoForge loader identifiers, and the old Minecraft/FML version constraints in a cached copy. **This is metadata compatibility only**; it does not yet provide the old Forge API surface or Minecraft 1.20.1-to-26.3 bytecode/API migration, and it does not mean Thermal runs yet.
 
 Project scope, architecture, compatibility status, and milestones:
 - [Project scope](docs/PROJECT_SCOPE.md)

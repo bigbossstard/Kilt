@@ -26,9 +26,10 @@ GitHub Issues are currently disabled in this fork (the Issues API returns HTTP 4
 
 ## Generic Forge-family bridge
 
-- [ ] Verify the legacy Forge metadata Mixin compiles against the pinned FML source.
+- [ ] Verify the legacy Forge metadata Mixin and dependency normalizer compile against the pinned FML source.
+- [ ] Add focused unit tests for legacy TOML normalization (mandatory/type, forge/neoforge, JavaFML, and Minecraft version constraints).
 - [ ] Confirm the Mixin intercepts both FML discovery and Twill's direct JAR-reader path.
-- [ ] Add dependency normalization policies for legacy Forge IDs and version ranges without falsely claiming API compatibility.
+- [x] Add initial legacy metadata normalization for dependency IDs/types and runtime version ranges; keep API compatibility as a separate layer.
 - [ ] Add legacy Forge namespace remapping with explicit mappings and tests.
 - [ ] Add transformation coverage for service files, reflection strings, access transformers, manifests, mixin configs, and refmaps.
 - [ ] Add Jar-in-Jar recursive inspection to the analysis tool.
