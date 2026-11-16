@@ -8,17 +8,22 @@ GitHub Issues are not enabled for this fork, so the active engineering backlog i
 - [x] Create a runtime-only normalized archive; leave original mod JARs untouched.
 - [x] Avoid carrying stale JAR signature sidecars into the normalized archive.
 - [x] Close the original and failed/declined normalized JarContents paths.
+- [x] Parse and rewrite legacy Forge metadata with NightConfig rather than regular expressions.
+- [x] Adapt JavaFML loaderVersion to the pinned runtime language-provider version.
+- [x] Map legacy Forge dependency identity/range to the current NeoForge runtime dependency.
+- [x] Translate legacy mandatory flags to modern required/optional dependency types.
+- [x] Add Kotlin unit tests for the metadata policy.
 - [x] Add Python metadata-inspection tooling and synthetic JAR tests.
 - [x] Add CI for Python validation and the active bridge build.
-- [ ] Confirm the Kotlin adapter compiles against the exact pinned FML submodule.
+- [ ] Confirm the Kotlin adapter and normalizer compile against the exact pinned FML submodule.
+- [ ] Run the Kotlin unit tests in CI.
 - [ ] Confirm the original and normalized JarContents are closed exactly once in all paths.
 
 ## In progress — generic Forge-family compatibility
 
-- [ ] Add explicit metadata policies for loaderVersion, forge dependency identity, and Minecraft version constraints.
-- [ ] Keep strict defaults; allow cross-version overrides only through named profiles and log every override.
+- [ ] Add profile selection and supported source/runtime version declarations to metadata policy.
 - [ ] Support directory/composite JarContents inputs, not just regular JAR files.
-- [ ] Add synthetic fixtures for Forge-only, NeoForge-only, dual-metadata, invalid metadata, and Jar-in-Jar archives.
+- [ ] Add JAR-level fixtures for Forge-only, NeoForge-only, dual-metadata, invalid metadata, and Jar-in-Jar archives.
 - [ ] Add a minimal legacy Forge test mod with no Thermal-specific code.
 - [ ] Add a minimal NeoForge test mod to ensure the native path remains unchanged.
 - [ ] Add class namespace and API reference diagnostics for supplied mod JARs.
